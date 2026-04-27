@@ -20,7 +20,7 @@ function apiToProduct(p: ApiProduct): Product {
     id:            String(p.id),
     dbId:          p.id,
     name:          p.name,
-    category:      p.category,
+    category:      p.category as any,
     price:         p.price,
     originalPrice: undefined,
     image:         p.imageUrl ? (p.imageUrl.startsWith("http") ? p.imageUrl : `${API_BASE}${p.imageUrl}`) : "/placeholder.jpg",

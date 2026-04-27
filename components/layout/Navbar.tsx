@@ -138,6 +138,28 @@ export default function Navbar() {
             ))}
           </div>
         )}
+
+        {/* Search Bar */}
+        {searchOpen && (
+          <div className="border-t border-gray-100 py-4">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400"
+                  autoFocus
+                />
+              </div>
+              <button type="button" onClick={() => setSearchOpen(false)} className="px-4 py-2 text-gray-500 hover:text-gray-900">
+                Cancel
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </nav>
   );
