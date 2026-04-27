@@ -1,0 +1,226 @@
+export type Category =
+  | "Smartphones & Accessories"
+  | "Audio"
+  | "Cables & Chargers"
+  | "Laptop Accessories"
+  | "Peripherals"
+  | "Cases & Protectors";
+
+export interface Product {
+  id: string;
+  dbId?: number;       // Maps to Products.Id in the backend DB
+  name: string;
+  category: Category;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  description: string;
+  specs: Record<string, string>;
+  stock: number;
+  rating: number;
+  reviews: number;
+  badge?: string;
+}
+
+export const products: Product[] = [
+  {
+    id: "p001",
+    name: "AirPods Pro Max Wireless Headphones",
+    category: "Audio",
+    price: 3899,
+    originalPrice: 4299,
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80",
+    description: "Premium over-ear wireless headphones with active noise cancellation, spatial audio, and up to 20 hours battery life.",
+    specs: { "Connectivity": "Bluetooth 5.3", "Battery": "20 hours ANC on", "Driver": "40mm dynamic", "Weight": "385g", "Colors": "Midnight, Starlight, Sky Blue" },
+    stock: 24,
+    rating: 4.8,
+    reviews: 312,
+    badge: "Sale",
+  },
+  {
+    id: "p002",
+    name: "Samsung Galaxy S24 Ultra",
+    category: "Smartphones & Accessories",
+    price: 69990,
+    image: "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&q=80",
+    description: "Flagship Android smartphone with 200MP camera, S Pen, 12GB RAM, and 5000mAh battery.",
+    specs: { "Display": "6.8\" QHD+ AMOLED", "Processor": "Snapdragon 8 Gen 3", "RAM": "12GB", "Storage": "256GB / 512GB / 1TB", "Camera": "200MP main" },
+    stock: 12,
+    rating: 4.9,
+    reviews: 541,
+    badge: "Flagship",
+  },
+  {
+    id: "p003",
+    name: "Apple iPhone 15 Pro",
+    category: "Smartphones & Accessories",
+    price: 64990,
+    image: "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=600&q=80",
+    description: "Pro-grade titanium iPhone with A17 Pro chip, 48MP main camera, and USB-C with USB 3 speeds.",
+    specs: { "Display": "6.1\" Super Retina XDR", "Chip": "A17 Pro", "RAM": "8GB", "Storage": "128GB–1TB", "Camera": "48MP ProRAW" },
+    stock: 8,
+    rating: 4.9,
+    reviews: 728,
+    badge: "Best Seller",
+  },
+  {
+    id: "p004",
+    name: "USB-C to USB-C Braided Cable 2m",
+    category: "Cables & Chargers",
+    price: 549,
+    image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=600&q=80",
+    description: "240W PD fast-charge braided cable with 10Gbps data transfer. Compatible with all USB-C devices.",
+    specs: { "Length": "2 meters", "Power": "240W PD 3.1", "Data": "10Gbps USB 3.2 Gen 2", "Material": "Braided nylon", "Compatibility": "Universal USB-C" },
+    stock: 150,
+    rating: 4.6,
+    reviews: 189,
+  },
+  {
+    id: "p005",
+    name: "GaN 65W Compact Charger",
+    category: "Cables & Chargers",
+    price: 1299,
+    image: "https://images.unsplash.com/photo-1601524909162-ae8725290836?w=600&q=80",
+    description: "Multi-port GaN charger — 2x USB-C + 1x USB-A — charges a laptop, phone, and earbuds simultaneously.",
+    specs: { "Total Power": "65W", "Ports": "2× USB-C, 1× USB-A", "Technology": "GaN III", "Protocols": "PD 3.0, QC 4+, PPS", "Size": "Pocket-sized" },
+    stock: 85,
+    rating: 4.7,
+    reviews: 224,
+    badge: "Popular",
+  },
+  {
+    id: "p006",
+    name: "Sony WH-1000XM5 Headphones",
+    category: "Audio",
+    price: 18990,
+    image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&q=80",
+    description: "Industry-leading noise cancelling headphones with 30-hour battery, multipoint connect, and crystal clear calls.",
+    specs: { "ANC": "Industry-leading", "Battery": "30 hours", "Connectivity": "Bluetooth 5.2", "Weight": "250g", "Microphones": "8 microphones" },
+    stock: 31,
+    rating: 4.9,
+    reviews: 867,
+    badge: "Top Rated",
+  },
+  {
+    id: "p007",
+    name: "Logitech MX Master 3S Mouse",
+    category: "Peripherals",
+    price: 4590,
+    image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=600&q=80",
+    description: "Advanced wireless mouse with 8K DPI sensor, MagSpeed scroll wheel, and ergonomic design for all-day comfort.",
+    specs: { "DPI": "200–8000", "Battery": "70 days", "Connectivity": "Bluetooth + USB receiver", "Scroll": "MagSpeed electromagnetic", "Buttons": "7 programmable" },
+    stock: 40,
+    rating: 4.8,
+    reviews: 432,
+  },
+  {
+    id: "p008",
+    name: "Keychron K2 Pro Mechanical Keyboard",
+    category: "Peripherals",
+    price: 5290,
+    image: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&q=80",
+    description: "Compact 75% wireless mechanical keyboard with RGB backlight, hot-swappable switches, and Mac/Windows layout.",
+    specs: { "Layout": "75% (84 keys)", "Switch": "Hot-swappable", "Connectivity": "Bluetooth 5.1 / USB-C", "Battery": "4000mAh", "Backlight": "RGB per key" },
+    stock: 22,
+    rating: 4.7,
+    reviews: 299,
+    badge: "New",
+  },
+  {
+    id: "p009",
+    name: "Apple MagSafe Leather Case – iPhone 15",
+    category: "Cases & Protectors",
+    price: 2990,
+    image: "https://images.unsplash.com/photo-1592439676045-a6a1dcf8b3d5?w=600&q=80",
+    description: "Genuine leather MagSafe case with precise cutouts, soft microfiber lining, and snap-in MagSafe charging.",
+    specs: { "Material": "European leather", "Compatibility": "iPhone 15 / Pro", "MagSafe": "Yes", "Colors": "Midnight, Forest, Umber" },
+    stock: 55,
+    rating: 4.5,
+    reviews: 143,
+  },
+  {
+    id: "p010",
+    name: "Anker USB-C Hub 7-in-1",
+    category: "Laptop Accessories",
+    price: 1999,
+    image: "https://images.unsplash.com/photo-1625842268584-8f3296236761?w=600&q=80",
+    description: "Slim 7-in-1 USB-C hub with 4K HDMI, 100W PD, 2× USB-A 3.0, SD/microSD reader, and USB-C data.",
+    specs: { "HDMI": "4K@30Hz", "Power Delivery": "100W PD", "USB-A": "2× USB 3.0 (5Gbps)", "Card Reader": "SD + microSD", "Weight": "60g" },
+    stock: 70,
+    rating: 4.6,
+    reviews: 311,
+    badge: "Popular",
+  },
+  {
+    id: "p011",
+    name: "Samsung 990 Pro NVMe SSD 1TB",
+    category: "Laptop Accessories",
+    price: 6499,
+    originalPrice: 7299,
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80",
+    description: "PCIe 4.0 NVMe SSD with 7450 MB/s sequential read speed, advanced heat management, and 5-year warranty.",
+    specs: { "Interface": "PCIe 4.0 NVMe M.2", "Read": "7450 MB/s", "Write": "6900 MB/s", "Capacity": "1TB", "Warranty": "5 years" },
+    stock: 18,
+    rating: 4.9,
+    reviews: 512,
+    badge: "Sale",
+  },
+  {
+    id: "p012",
+    name: "Beats Studio Buds+ True Wireless",
+    category: "Audio",
+    price: 8990,
+    image: "https://images.unsplash.com/photo-1606220838315-056192d5e927?w=600&q=80",
+    description: "True wireless earbuds with ANC, transparency mode, 36-hour total battery with case, and one-touch pairing.",
+    specs: { "ANC": "Active Noise Cancelling", "Battery": "9hr + 27hr case", "Connectivity": "Bluetooth 5.3", "Microphone": "3-mic array", "Water Resistance": "IPX4" },
+    stock: 29,
+    rating: 4.6,
+    reviews: 198,
+  },
+  {
+    id: "p013",
+    name: "Tempered Glass Screen Protector (Universal)",
+    category: "Cases & Protectors",
+    price: 299,
+    image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=80",
+    description: "9H hardness tempered glass with oleophobic coating. 0.3mm ultra-thin for full touch sensitivity.",
+    specs: { "Hardness": "9H", "Thickness": "0.3mm", "Coating": "Oleophobic anti-fingerprint", "Pack": "2 pieces" },
+    stock: 300,
+    rating: 4.4,
+    reviews: 85,
+  },
+  {
+    id: "p014",
+    name: "Laptop Stand Aluminium Adjustable",
+    category: "Laptop Accessories",
+    price: 1499,
+    image: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80",
+    description: "Foldable aluminum laptop stand with 6 height levels, anti-slip pads, and passive cooling design.",
+    specs: { "Material": "Aluminium alloy", "Angles": "6 levels (15°–45°)", "Compatibility": "10\"–17\" laptops", "Weight Capacity": "5kg", "Folded Size": "26×18cm" },
+    stock: 45,
+    rating: 4.7,
+    reviews: 176,
+  },
+  {
+    id: "p015",
+    name: "Xiaomi Wireless Earbuds Pro 4",
+    category: "Audio",
+    price: 3499,
+    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&q=80",
+    description: "Hi-Res Audio earbuds with 48dB ANC, LDAC support, 10mm dynamic driver, and 38-hour total playtime.",
+    specs: { "ANC": "48dB max", "Battery": "8hr + 30hr case", "Codec": "LDAC, AAC, SBC", "Driver": "10mm", "Water Resistance": "IP54" },
+    stock: 36,
+    rating: 4.7,
+    reviews: 267,
+    badge: "New",
+  },
+];
+
+export const categories: { name: Category; icon: string; count: number }[] = [
+  { name: "Smartphones & Accessories", icon: "📱", count: products.filter(p => p.category === "Smartphones & Accessories").length },
+  { name: "Audio", icon: "🎧", count: products.filter(p => p.category === "Audio").length },
+  { name: "Cables & Chargers", icon: "🔌", count: products.filter(p => p.category === "Cables & Chargers").length },
+  { name: "Laptop Accessories", icon: "💻", count: products.filter(p => p.category === "Laptop Accessories").length },
+  { name: "Peripherals", icon: "🖥️", count: products.filter(p => p.category === "Peripherals").length },
+  { name: "Cases & Protectors", icon: "🛡️", count: products.filter(p => p.category === "Cases & Protectors").length },
+];
