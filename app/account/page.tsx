@@ -2,28 +2,41 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Package, RotateCcw, LogOut, ArrowRight } from "lucide-react";
+import { User, Package, RotateCcw, LogOut, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { mockOrders } from "@/data/orders";
+import { fetchMyOrders } from "@/lib/api";
 import Badge from "@/components/ui/Badge";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+interface RecentOrder {
+  id: number;
+  orderNumber: string;
+  date: string;
+  status: string;
+  total: number;
+}
 
 export default function AccountPage() {
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) router.push("/login");
-  }, [isAuthenticated, router]);
+    if (!isAuthenticated) { router.push("/login"); return; }
+    if (!user) return;
+    fetchMyOrders(user.id)
+      .then((orders: RecentOrder[]) => setRecentOrders(orders.slice(0, 3)))
+      .catch(() => setRecentOrders([]))
+      .finally(() => setLoadingOrders(false));
+  }, [isAuthenticated, user, router]);
 
   if (!user) return null;
 
-  const recentOrders = mockOrders.slice(0, 2);
-
   const quickLinks = [
-    { icon: Package, label: "My Orders", desc: "View and track your orders", href: "/account/orders" },
-    { icon: RotateCcw, label: "My Returns", desc: "Manage your return requests", href: "/account/returns" },
+    { icon: Package,   label: "My Orders",  desc: "View and track your orders",       href: "/account/orders"  },
+    { icon: RotateCcw, label: "My Returns", desc: "Manage your return requests",       href: "/account/returns" },
   ];
 
   return (
@@ -77,21 +90,36 @@ export default function AccountPage() {
             View all
           </Link>
         </div>
-        <div className="flex flex-col gap-3">
-          {recentOrders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/account/orders/${order.id}`}
-              className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-gray-200 hover:shadow-sm transition-all"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900">{order.orderNumber}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.date)} · {formatCurrency(order.total)}</p>
-              </div>
-              <Badge status={order.status} size="sm" />
+
+        {loadingOrders ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
+          </div>
+        ) : recentOrders.length === 0 ? (
+          <div className="text-center py-10 bg-white border border-gray-100 rounded-2xl">
+            <Package className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">No orders yet.</p>
+            <Link href="/shop" className="mt-3 inline-block text-sm font-medium text-gray-900 underline">
+              Start Shopping
             </Link>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/account/orders/${order.orderNumber}`}
+                className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-gray-200 hover:shadow-sm transition-all"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{order.orderNumber}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{formatDate(order.date)} · {formatCurrency(order.total)}</p>
+                </div>
+                <Badge status={order.status} size="sm" />
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

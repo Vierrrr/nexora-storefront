@@ -5,14 +5,22 @@ import Link from "next/link";
 import Image from "next/image";
 import { ShoppingCart, ArrowRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-import { fetchProducts, API_BASE } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { FALLBACK_IMAGE, type ApiProduct } from "@/lib/useProducts";
+import { flyToCart } from "@/lib/flyToCart";
 import type { Product } from "@/data/products";
 
-interface ApiProduct {
-  id: number; name: string; category: string; price: number;
-  stockQuantity: number; imageUrl?: string; description?: string;
-  badge?: string; rating: number; reviews: number;
+const CACHE_KEY    = "nexora_products_cache";
+
+function readCache(): ApiProduct[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    // Reuse the same cache the shop uses — TTL already handled there
+    return Array.isArray(entry.data) ? entry.data : null;
+  } catch { return null; }
 }
 
 function apiToProduct(p: ApiProduct): Product {
@@ -20,10 +28,10 @@ function apiToProduct(p: ApiProduct): Product {
     id:            String(p.id),
     dbId:          p.id,
     name:          p.name,
-    category:      p.category as any,
+    category:      p.category as never,
     price:         p.price,
     originalPrice: undefined,
-    image:         p.imageUrl ? (p.imageUrl.startsWith("http") ? p.imageUrl : `${API_BASE}${p.imageUrl}`) : "/placeholder.jpg",
+    image:         p.imageUrl?.startsWith("http") ? p.imageUrl : (p.imageUrl ? `${API_BASE}${p.imageUrl}` : FALLBACK_IMAGE),
     description:   p.description ?? "",
     badge:         p.badge ?? undefined,
     stock:         p.stockQuantity,
@@ -34,30 +42,54 @@ function apiToProduct(p: ApiProduct): Product {
 }
 
 export default function FeaturedSection() {
-  const { addToCart } = useCart();
+  const { addToCart }  = useCart();
   const [featured, setFeatured] = useState<Product[]>([]);
-  const [added, setAdded] = useState<string | null>(null);
+  const [added,    setAdded]    = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProducts()
-      .then((ps: ApiProduct[]) => {
-        // Show first 4 in-stock products — prefer ones with badges
+    async function load() {
+      // ── 1. Show cache immediately ──────────────────────────────
+      const cached = readCache();
+      if (cached && cached.length > 0) {
+        const sorted = [...cached].sort((a, b) => {
+          if (a.badge && !b.badge) return -1;
+          if (!a.badge && b.badge) return 1;
+          return b.stockQuantity - a.stockQuantity;
+        });
+        setFeatured(sorted.slice(0, 4).map(apiToProduct));
+      }
+
+      // ── 2. Try live API ────────────────────────────────────────
+      try {
+        const controller = new AbortController();
+        const timeout    = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${API_BASE}/api/products`, {
+          credentials: "include",
+          signal:       controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) return;
+        const ps: ApiProduct[] = await res.json();
         const sorted = [...ps].sort((a, b) => {
           if (a.badge && !b.badge) return -1;
           if (!a.badge && b.badge) return 1;
           return b.stockQuantity - a.stockQuantity;
         });
         setFeatured(sorted.slice(0, 4).map(apiToProduct));
-      })
-      .catch(() => {}); // graceful fail — homepage still works
+      } catch {
+        // Live API failed — cached result above is already shown, nothing more to do
+      }
+    }
+    load();
   }, []);
 
   if (featured.length === 0) return null;
 
-  const handleAdd = (product: Product) => {
+  const handleAdd = (product: Product, btn: HTMLButtonElement) => {
     if (product.stock === 0) return;
     addToCart(product, 1);
     setAdded(product.id);
+    flyToCart(btn, product.image);
     setTimeout(() => setAdded(null), 1800);
   };
 
@@ -78,9 +110,13 @@ export default function FeaturedSection() {
                   src={product.image} alt={product.name} fill
                   className="object-cover group-hover:scale-105 transition-transform duration-300"
                   sizes="(max-width: 640px) 50vw, 25vw"
+                  onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                 />
                 {product.badge && (
-                  <span className="absolute top-2.5 left-2.5 bg-gray-900 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
+                  <span className={`absolute top-2.5 left-2.5 text-white text-[10px] font-semibold px-2 py-1 rounded-full ${
+                    product.badge === "Out of Stock" ? "bg-red-500" :
+                    product.badge === "Low Stock"    ? "bg-orange-500" : "bg-gray-900"
+                  }`}>
                     {product.badge}
                   </span>
                 )}
@@ -97,9 +133,9 @@ export default function FeaturedSection() {
               </Link>
               <p className="text-sm font-semibold text-gray-900 mb-3">{formatCurrency(product.price)}</p>
               <button
-                onClick={() => handleAdd(product)}
+                onClick={(e) => handleAdd(product, e.currentTarget)}
                 disabled={product.stock === 0}
-                className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
                   added === product.id
                     ? "bg-green-600 text-white"
                     : product.stock === 0

@@ -9,9 +9,9 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, recaptchaToken?: string) => Promise<boolean>;
   logout: () => void;
-  register: (name: string, email: string, password: string, phone: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, phone: string, recaptchaToken?: string) => Promise<boolean>;
   error: string;
 }
 
@@ -32,10 +32,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string, recaptchaToken?: string): Promise<boolean> => {
     setError("");
     try {
-      const u = await apiLogin(email, password);
+      const u = await apiLogin(email, password, recaptchaToken);
       setUser(u);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       return true;
@@ -45,10 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, phone: string): Promise<boolean> => {
+  const register = useCallback(async (name: string, email: string, password: string, phone: string, recaptchaToken?: string): Promise<boolean> => {
     setError("");
     try {
-      const u = await apiRegister(name, email, password, phone);
+      const u = await apiRegister(name, email, password, phone, recaptchaToken);
       setUser(u);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       return true;

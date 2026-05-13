@@ -3,18 +3,18 @@ import Image from "next/image";
 import { ArrowRight, ShieldCheck, Truck, RefreshCw, Headphones } from "lucide-react";
 import { products, categories } from "@/data/products";
 import FeaturedSection from "@/components/ui/FeaturedSection";
+import type { Metadata } from "next";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Nexora — Electronics & Accessories",
   description: "Shop premium electronics and accessories. Fast shipping, easy returns, real-time tracking.",
 };
 
-
 const perks = [
-  { icon: Truck, title: "Free Shipping", desc: "On orders over ₱2,000" },
-  { icon: ShieldCheck, title: "Authentic Products", desc: "100% genuine items" },
-  { icon: RefreshCw, title: "Easy Returns", desc: "30-day return window" },
-  { icon: Headphones, title: "24/7 Support", desc: "Always here to help" },
+  { icon: Truck,       title: "Free Shipping",     desc: "On orders over ₱2,000" },
+  { icon: ShieldCheck, title: "Authentic Products", desc: "100% genuine items"    },
+  { icon: RefreshCw,   title: "Easy Returns",       desc: "30-day return window"  },
+  { icon: Headphones,  title: "24/7 Support",       desc: "Always here to help"   },
 ];
 
 export default function HomePage() {
@@ -34,7 +34,7 @@ export default function HomePage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-28 md:py-40">
           <div className="max-w-xl">
             <span className="inline-block text-xs font-semibold tracking-widest uppercase text-gray-400 mb-4">
-              Electronics & Accessories
+              Electronics &amp; Accessories
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight tracking-tight mb-6">
               The tech you need,
@@ -115,7 +115,6 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-        {/* Mobile: visible Shop All button */}
         <div className="mt-5 sm:hidden text-center">
           <Link
             href="/shop"

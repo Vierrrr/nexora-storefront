@@ -2,10 +2,12 @@
 
 import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X, ChevronUp, ChevronDown, LayoutGrid, List, Star } from "lucide-react";
+import { Search, X, ChevronUp, ChevronDown, LayoutGrid, List, Star, WifiOff, RefreshCw } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { formatCurrency } from "@/lib/utils";
-import { useProducts, ApiProduct, FALLBACK_IMAGE } from "@/lib/useProducts";
+import { useProductsOffline, type DataSource } from "@/lib/useProductsOffline";
+import { FALLBACK_IMAGE, type ApiProduct } from "@/lib/useProducts";
+import { flyToCart } from "@/lib/flyToCart";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -27,8 +29,11 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function ProductCard({ product, onAddToCart }: { product: ApiProduct; onAddToCart: (p: ApiProduct) => void }) {
-  const img = product.imageUrl || FALLBACK_IMAGE;
+function ProductCard({ product, onAddToCart }: {
+  product:    ApiProduct;
+  onAddToCart: (p: ApiProduct, btn: HTMLButtonElement) => void;
+}) {
+  const img   = product.imageUrl || (product.images?.[0]) || FALLBACK_IMAGE;
   const isOut = product.stockQuantity === 0;
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-200">
@@ -63,8 +68,10 @@ function ProductCard({ product, onAddToCart }: { product: ApiProduct; onAddToCar
               <span className="text-xs text-gray-400 line-through ml-2">{formatCurrency(product.originalPrice)}</span>
             )}
           </div>
-          <button onClick={() => onAddToCart(product)} disabled={isOut}
-            className="text-xs font-medium bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button
+            onClick={(e) => onAddToCart(product, e.currentTarget)}
+            disabled={isOut}
+            className="text-xs font-medium bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
             {isOut ? "Sold Out" : "Add"}
           </button>
         </div>
@@ -73,10 +80,37 @@ function ProductCard({ product, onAddToCart }: { product: ApiProduct; onAddToCar
   );
 }
 
+// Offline banner shown when source is not "live"
+function OfflineBanner({ source, error, onRetry }: { source: DataSource; error: string | null; onRetry: () => void }) {
+  if (source === "live") return null;
+  const isSeed  = source === "seed";
+  const message = isSeed
+    ? "Backend is offline. Showing sample data."
+    : "Backend is offline. Showing cached products from your last visit.";
+  return (
+    <div className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 mb-6 text-sm ${
+      isSeed
+        ? "bg-red-50 border border-red-100 text-red-700"
+        : "bg-amber-50 border border-amber-100 text-amber-700"
+    }`}>
+      <div className="flex items-center gap-2">
+        <WifiOff className="w-4 h-4 flex-shrink-0" />
+        <span>{error || message}</span>
+      </div>
+      <button
+        onClick={onRetry}
+        className="flex items-center gap-1.5 text-xs font-semibold underline-offset-2 hover:underline flex-shrink-0"
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Retry
+      </button>
+    </div>
+  );
+}
+
 export default function ShopContent() {
-  const searchParams   = useSearchParams();
-  const { addToCart }  = useCart();
-  const { products, loading, error, categories } = useProducts();
+  const searchParams  = useSearchParams();
+  const { addToCart } = useCart();
+  const { products, loading, error, source, categories, refetch } = useProductsOffline();
 
   const [search, setSearch]               = useState(() => searchParams.get("search") || "");
   const [selectedCategory, setCategory]   = useState(() => searchParams.get("category") || "");
@@ -117,7 +151,7 @@ export default function ShopContent() {
     return result;
   }, [products, search, selectedCategory, maxPrice, inStockOnly, sortBy]);
 
-  if (loading) return (
+  if (loading && products.length === 0) return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="h-8 w-48 bg-gray-100 rounded-xl animate-pulse mb-2" />
       <div className="flex gap-8 mt-10">
@@ -131,20 +165,19 @@ export default function ShopContent() {
     </div>
   );
 
-  if (error) return (
-    <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-      <p className="text-red-500 font-medium mb-2">Could not load products</p>
-      <p className="text-sm text-gray-400">Make sure the backend is running at localhost:5160</p>
-      <p className="text-xs text-gray-300 mt-2 font-mono">{error}</p>
-    </div>
-  );
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">All Products</h1>
-        <p className="text-sm text-gray-400 mt-1">{products.length} items in our catalog</p>
+        <p className="text-sm text-gray-400 mt-1">
+          {products.length} items
+          {source === "cache" && <span className="ml-2 text-amber-500 font-medium">(cached)</span>}
+          {source === "seed"  && <span className="ml-2 text-red-400 font-medium">(offline)</span>}
+        </p>
       </div>
+
+      {/* Offline / cache banner */}
+      <OfflineBanner source={source} error={error} onRetry={refetch} />
 
       <div className="flex gap-8">
         {/* Sidebar */}
@@ -243,7 +276,14 @@ export default function ShopContent() {
           {filtered.length > 0 && viewMode === "grid" && (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(p => (
-                <ProductCard key={p.id} product={p} onAddToCart={p2 => addToCart(toCartProduct(p2))} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  onAddToCart={(p2, btn) => {
+                    addToCart(toCartProduct(p2));
+                    flyToCart(btn, p2.imageUrl || p2.images?.[0]);
+                  }}
+                />
               ))}
             </div>
           )}
@@ -268,8 +308,13 @@ export default function ShopContent() {
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-base font-semibold text-gray-900">{formatCurrency(p.price)}</span>
-                      <button onClick={() => addToCart(toCartProduct(p))} disabled={p.stockQuantity === 0}
-                        className="text-xs font-medium bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40">
+                      <button
+                        onClick={(e) => {
+                          addToCart(toCartProduct(p));
+                          flyToCart(e.currentTarget, p.imageUrl || p.images?.[0]);
+                        }}
+                        disabled={p.stockQuantity === 0}
+                        className="text-xs font-medium bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 active:scale-95 transition-all disabled:opacity-40">
                         {p.stockQuantity === 0 ? "Sold Out" : "Add to Cart"}
                       </button>
                     </div>

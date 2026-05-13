@@ -7,7 +7,7 @@ import { Package, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import Badge from "@/components/ui/Badge";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import { fetchMyOrders, API_BASE } from "@/lib/api";
+import { fetchMyOrders } from "@/lib/api";
 
 interface OrderItem { name: string; quantity: number; price: number; }
 interface Order {

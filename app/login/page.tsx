@@ -1,26 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Package, Eye, EyeOff } from "lucide-react";
+import { Package, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import ReCAPTCHA from "react-google-recaptcha";
 import { useAuth } from "@/context/AuthContext";
+import { checkClientRateLimit } from "@/lib/recaptcha";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+const RECAPTCHA_V2_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
+
+function LoginForm() {
   const { login, error: authError } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/account";
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [showPw, setShowPw] = useState(false);
+  const router                       = useRouter();
+  const searchParams                 = useSearchParams();
+  const redirect                     = searchParams.get("redirect") || "/account";
+  const recaptchaRef                 = useRef<ReCAPTCHA>(null);
+
+  const [form, setForm]       = useState({ email: "", password: "" });
+  const [showPw, setShowPw]   = useState(false);
   const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [captchaError, setCaptchaError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCaptchaError("");
+
+    // Client-side rate limiting
+    const rl = checkClientRateLimit("login", 10, 5 * 60 * 1000);
+    if (!rl.allowed) { setRateLimited(true); return; }
+
+    // After first failure, reCAPTCHA v2 is required
+    let token = "";
+    if (attempts > 0) {
+      token = recaptchaRef.current?.getValue() ?? "";
+      if (!token) {
+        setCaptchaError("Please complete the reCAPTCHA verification before signing in.");
+        return;
+      }
+    }
+
     setLoading(true);
-    const ok = await login(form.email, form.password);
+    const ok = await login(form.email, form.password, token);
     setLoading(false);
-    if (ok) router.push(redirect);
+
+    if (ok) {
+      router.push(redirect);
+    } else {
+      setAttempts((a) => a + 1);
+      recaptchaRef.current?.reset(); // Reset after failed attempt
+    }
   };
 
   return (
@@ -30,7 +62,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center">
-              <Package className="w-4.5 h-4.5 text-white" />
+              <Package className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-semibold text-gray-900">Nexora</span>
           </Link>
@@ -40,17 +72,32 @@ export default function LoginPage() {
           <h1 className="text-xl font-semibold text-gray-900 mb-1">Welcome back</h1>
           <p className="text-sm text-gray-500 mb-6">Sign in to your account</p>
 
-          {authError && (
+          {rateLimited && (
+            <div className="bg-amber-50 border border-amber-100 text-amber-700 text-sm rounded-xl px-4 py-3 mb-5">
+              Too many login attempts. Please wait 5 minutes before trying again.
+            </div>
+          )}
+
+          {authError && !rateLimited && (
             <div className="bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl px-4 py-3 mb-5">
               {authError}
+              {attempts >= 1 && (
+                <p className="mt-1 text-xs text-red-400 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> Please complete the reCAPTCHA below to continue
+                </p>
+              )}
+            </div>
+          )}
+
+          {captchaError && (
+            <div className="bg-orange-50 border border-orange-100 text-orange-600 text-sm rounded-xl px-4 py-3 mb-5">
+              {captchaError}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                Email Address
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Email Address</label>
               <input
                 type="email"
                 value={form.email}
@@ -62,10 +109,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-gray-600">Password</label>
-                <span className="text-xs text-gray-400 cursor-default">Forgot password?</span>
-              </div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
@@ -85,9 +129,19 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* reCAPTCHA v2 — shown after first failed attempt */}
+            {attempts > 0 && RECAPTCHA_V2_KEY && (
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={RECAPTCHA_V2_KEY}
+                />
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || rateLimited}
               className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-60 mt-1"
             >
               {loading ? "Signing in..." : "Sign In"}
@@ -97,11 +151,22 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-5">
           Don&apos;t have an account?{" "}
-          <Link href={`/register${redirect !== "/account" ? `?redirect=${redirect}` : ""}`} className="text-gray-900 font-medium hover:underline">
+          <Link
+            href={`/register${redirect !== "/account" ? `?redirect=${redirect}` : ""}`}
+            className="text-gray-900 font-medium hover:underline"
+          >
             Create one
           </Link>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[80vh]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

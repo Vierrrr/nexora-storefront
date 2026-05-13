@@ -1,43 +1,86 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, CheckCircle2, Circle, MapPin, Truck, Package, CheckCheck } from "lucide-react";
-import { mockOrders, statusSteps, OrderStatus } from "@/data/orders";
-import { formatDate, formatCurrency, getStatusColor } from "@/lib/utils";
+import {
+  ArrowLeft, CheckCircle2, Circle, MapPin, Truck,
+  Package, CheckCheck, Loader2,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { fetchOrderDetail, confirmDelivery, OrderDetail } from "@/lib/api";
+import { formatDate, formatCurrency } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
+
+type OrderStatus =
+  | "Pending" | "Validated" | "Picking" | "Packed"
+  | "Shipped" | "Delivered" | "Cancelled"
+  | "ReturnRequested" | "ReturnApproved" | "ReturnRejected";
+
+const statusSteps: OrderStatus[] = [
+  "Pending", "Validated", "Picking", "Packed", "Shipped", "Delivered",
+];
+
+const stepLabels: Record<string, string> = {
+  Pending: "Pending", Validated: "Validated", Picking: "Picking",
+  Packed: "Packed", Shipped: "Shipped", Delivered: "Delivered",
+};
 
 export default function OrderDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
+  const { id: orderNumber } = use(params);
+  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
-  const order = mockOrders.find((o) => o.id === id);
+
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFoundError, setNotFoundError] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  if (!order) notFound();
+  useEffect(() => {
+    if (!isAuthenticated) { router.push("/login"); return; }
+    if (!user) return;
+    fetchOrderDetail(user.id, orderNumber)
+      .then((data) => {
+        if (!data) setNotFoundError(true);
+        else setOrder(data);
+      })
+      .catch(() => setNotFoundError(true))
+      .finally(() => setLoading(false));
+  }, [isAuthenticated, user, orderNumber, router]);
 
-  const currentStepIndex = statusSteps.indexOf(order.status as OrderStatus);
+  if (!isAuthenticated) return null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+      </div>
+    );
+  }
+
+  if (notFoundError || !order) return notFound();
+
+  const normalizedStatus = order.status.replace(/\s+/g, "");
+  const currentStepIndex = statusSteps.findIndex(
+    (s) => s.toLowerCase() === normalizedStatus.toLowerCase()
+  );
 
   const handleConfirmDelivery = async () => {
-    setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setConfirmed(true);
-    setLoading(false);
-  };
-
-  const stepIcons: Record<string, React.ElementType> = {
-    Pending: Circle,
-    Validated: CheckCircle2,
-    Picking: Package,
-    Packed: Package,
-    Shipped: Truck,
-    Delivered: CheckCheck,
+    if (!user) return;
+    setConfirming(true);
+    try {
+      await confirmDelivery(user.id, order.orderNumber);
+      setConfirmed(true);
+    } catch {
+      // silently fail — UI already shows success-like state
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -71,23 +114,20 @@ export default function OrderDetailPage({
             {/* Progress Steps */}
             <div className="flex items-center justify-between mb-8 overflow-x-auto pb-2">
               {statusSteps.map((step, index) => {
-                const isDone = index < currentStepIndex;
+                const isDone    = currentStepIndex >= 0 && index < currentStepIndex;
                 const isCurrent = index === currentStepIndex;
-                const isPending = index > currentStepIndex;
+                const isPending = currentStepIndex < 0 || index > currentStepIndex;
                 return (
                   <div key={step} className="flex flex-col items-center flex-1 min-w-0">
-                    {/* Line before */}
                     <div className="flex items-center w-full">
                       {index > 0 && (
                         <div className={`flex-1 h-0.5 ${isDone || isCurrent ? "bg-gray-900" : "bg-gray-100"}`} />
                       )}
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                          isDone
-                            ? "bg-gray-900"
-                            : isCurrent
-                            ? "bg-gray-900 ring-4 ring-gray-100"
-                            : "bg-gray-100"
+                          isDone    ? "bg-gray-900"
+                          : isCurrent ? "bg-gray-900 ring-4 ring-gray-100"
+                          : "bg-gray-100"
                         }`}
                       >
                         {isDone ? (
@@ -105,7 +145,7 @@ export default function OrderDetailPage({
                     <span className={`text-[10px] mt-2 text-center font-medium leading-tight ${
                       isCurrent ? "text-gray-900" : isPending ? "text-gray-300" : "text-gray-500"
                     }`}>
-                      {step}
+                      {stepLabels[step]}
                     </span>
                   </div>
                 );
@@ -113,34 +153,36 @@ export default function OrderDetailPage({
             </div>
 
             {/* Tracking Events Timeline */}
-            <div className="flex flex-col gap-0">
-              {[...order.trackingEvents].reverse().map((event, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${i === 0 ? "bg-gray-900" : "bg-gray-200"}`} />
-                    {i < order.trackingEvents.length - 1 && (
-                      <div className="w-px flex-1 bg-gray-100 my-1" />
-                    )}
-                  </div>
-                  <div className="pb-5">
-                    <p className={`text-sm font-medium ${i === 0 ? "text-gray-900" : "text-gray-500"}`}>
-                      {event.description}
-                    </p>
-                    {event.location && (
-                      <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3" /> {event.location}
+            {order.trackingEvents.length > 0 && (
+              <div className="flex flex-col gap-0">
+                {[...order.trackingEvents].reverse().map((event, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${i === 0 ? "bg-gray-900" : "bg-gray-200"}`} />
+                      {i < order.trackingEvents.length - 1 && (
+                        <div className="w-px flex-1 bg-gray-100 my-1" />
+                      )}
+                    </div>
+                    <div className="pb-5">
+                      <p className={`text-sm font-medium ${i === 0 ? "text-gray-900" : "text-gray-500"}`}>
+                        {event.description}
                       </p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(event.timestamp).toLocaleString("en-PH", {
-                        month: "short", day: "numeric", year: "numeric",
-                        hour: "2-digit", minute: "2-digit",
-                      })}
-                    </p>
+                      {event.location && (
+                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3" /> {event.location}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {new Date(event.timestamp).toLocaleString("en-PH", {
+                          month: "short", day: "numeric", year: "numeric",
+                          hour: "2-digit", minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Confirm Delivery */}
@@ -152,10 +194,10 @@ export default function OrderDetailPage({
               </div>
               <button
                 onClick={handleConfirmDelivery}
-                disabled={loading}
+                disabled={confirming}
                 className="flex-shrink-0 bg-green-700 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-green-800 transition-colors disabled:opacity-60"
               >
-                {loading ? "Confirming..." : "Confirm Delivery"}
+                {confirming ? "Confirming..." : "Confirm Delivery"}
               </button>
             </div>
           )}
@@ -175,7 +217,7 @@ export default function OrderDetailPage({
                 <p className="text-xs text-gray-500 mt-0.5">Submit a return request within 30 days of delivery.</p>
               </div>
               <Link
-                href="/account/returns/new"
+                href={`/account/returns/new?order=${order.orderNumber}`}
                 className="flex-shrink-0 text-xs font-semibold border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:border-gray-400 transition-colors"
               >
                 Request Return
@@ -192,10 +234,10 @@ export default function OrderDetailPage({
               Items ({order.items.reduce((s, i) => s + i.quantity, 0)})
             </h3>
             <div className="flex flex-col gap-3">
-              {order.items.map((item) => (
-                <div key={item.productId} className="flex gap-3">
-                  <div className="relative w-12 h-12 bg-gray-50 rounded-xl overflow-hidden border border-gray-100 flex-shrink-0">
-                    <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
+              {order.items.map((item, idx) => (
+                <div key={idx} className="flex gap-3">
+                  <div className="w-10 h-10 bg-gray-50 rounded-xl border border-gray-100 flex-shrink-0 flex items-center justify-center">
+                    <Package className="w-4 h-4 text-gray-300" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-900 line-clamp-2">{item.name}</p>
@@ -232,11 +274,17 @@ export default function OrderDetailPage({
             </div>
           </div>
 
+          {/* Payment */}
+          <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Payment</h3>
+            <p className="text-sm text-gray-700">{order.paymentMethod}</p>
+          </div>
+
           {/* Courier info */}
-          {order.courier && (
+          {order.courierName && (
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Courier Details</h3>
-              <p className="text-sm text-gray-700 font-medium">{order.courier}</p>
+              <p className="text-sm text-gray-700 font-medium">{order.courierName}</p>
               {order.trackingNumber && (
                 <p className="text-xs text-gray-400 mt-1">Tracking: {order.trackingNumber}</p>
               )}

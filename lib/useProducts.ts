@@ -5,7 +5,7 @@ import { API_BASE } from "./api";
 
 // Product shape returned by the backend API
 export interface ApiProduct {
-  id: number;             // Real DB id — used as productId in orders
+  id: number;
   name: string;
   category: string;
   price: number;
@@ -13,6 +13,7 @@ export interface ApiProduct {
   stockQuantity: number;
   sku?: string;
   imageUrl?: string;
+  images?: string[];        // multiple product images (Cloudinary URLs)
   description?: string;
   badge?: string;
   rating: number;
